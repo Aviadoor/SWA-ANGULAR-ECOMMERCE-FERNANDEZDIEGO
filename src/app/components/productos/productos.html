@@ -1,4 +1,4 @@
-<div style="max-width: 900px; margin: 30px auto; font-family: sans-serif;">
+<div style="max-width: 900px; margin: 30px auto; font-family: sans-serif; padding-bottom: 50px;">
     <div
         style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 12px;">
         <h2>Gestión de Inventario y Pedidos</h2>
@@ -9,16 +9,16 @@
         </div>
     </div>
 
-    <!-- Alerta de error de permisos -->
+    <!-- Alerta de error -->
     <div *ngIf="mensajeAlerta"
         style="background: #f8d7da; color: #721c24; padding: 12px; margin-top: 15px; border-radius: 4px;">
         {{ mensajeAlerta }}
     </div>
 
-    <!-- Formulario Crear / Actualizar Producto -->
-    <div style="background: #f9f9f9; padding: 16px; margin-top: 20px; border-radius: 6px;">
+    <!-- 1. FORMULARIO PRODUCTOS -->
+    <div style="background: #f9f9f9; padding: 16px; margin-top: 20px; border-radius: 6px; border: 1px solid #e0e0e0;">
         <h3>{{ editando ? 'Modificar Producto' : 'Registrar Producto' }}</h3>
-        <form (ngSubmit)="guardarProducto()" style="display: flex; gap: 10px; align-items: flex-end;">
+        <form (ngSubmit)="guardarProducto()" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
             <div>
                 <label>Nombre:</label><br>
                 <input type="text" [(ngModel)]="productoActual.nombre" name="nombre" required />
@@ -32,17 +32,17 @@
                 <input type="number" [(ngModel)]="productoActual.stock" name="stock" required />
             </div>
             <button type="submit"
-                style="padding: 6px 14px; background: #28a745; color: white; border: none; cursor: pointer;">
+                style="padding: 7px 14px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 {{ editando ? 'Actualizar' : 'Guardar' }}
             </button>
-            <button *ngIf="editando" type="button" (click)="limpiarFormulario()"
-                style="padding: 6px 14px; cursor: pointer;">
+            <button *ngIf="editando" type="button" (click)="limpiarFormularioProducto()"
+                style="padding: 7px 14px; cursor: pointer; border-radius: 4px;">
                 Cancelar
             </button>
         </form>
     </div>
 
-    <!-- Tabla de Productos -->
+    <!-- TABLA DE PRODUCTOS -->
     <h3 style="margin-top: 25px;">Lista de Productos</h3>
     <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background: #eee;">
@@ -68,8 +68,73 @@
         </tbody>
     </table>
 
-    <!-- Tabla de Pedidos -->
-    <h3 style="margin-top: 30px;">Lista de Pedidos</h3>
+    <!-- 2. FORMULARIO NUEVO PEDIDO -->
+    <div style="background: #f1f8ff; padding: 16px; margin-top: 35px; border-radius: 6px; border: 1px solid #bbe1fa;">
+        <h3>Registrar Nuevo Pedido</h3>
+
+        <div style="margin-bottom: 12px;">
+            <label>Nombre del Cliente:</label><br>
+            <input type="text" [(ngModel)]="nombreCliente" placeholder="Ej. Carlos Mendoza"
+                style="width: 300px; padding: 6px;" />
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 15px;">
+            <div>
+                <label>Seleccionar Producto:</label><br>
+                <select [(ngModel)]="productoSeleccionadoId" style="padding: 6px; width: 220px;">
+                    <option [ngValue]="null" disabled>-- Seleccione --</option>
+                    <option *ngFor="let p of productos" [ngValue]="p.id">
+                        {{ p.nombre || p.nombre }} (Stock: {{ p.stock }} - S/ {{ p.precio }})
+                    </option>
+                </select>
+            </div>
+            <div>
+                <label>Cantidad:</label><br>
+                <input type="number" [(ngModel)]="cantidadSeleccionada" min="1" style="width: 80px; padding: 6px;" />
+            </div>
+            <button type="button" (click)="agregarItemAlPedido()"
+                style="padding: 7px 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Agregar al Pedido
+            </button>
+        </div>
+
+        <!-- Tabla interna de ítems seleccionados -->
+        <div *ngIf="itemsPedido.length > 0">
+            <h4>Productos en el Pedido Actual:</h4>
+            <table border="1" cellpadding="6" cellspacing="0"
+                style="width: 100%; border-collapse: collapse; background: white; text-align: left;">
+                <thead style="background: #e2e8f0;">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio Unitario</th>
+                        <th>Cantidad</th>
+                        <th>Subtotal</th>
+                        <th>Quitar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let item of itemsPedido; let i = index">
+                        <td>{{ item.producto.nombre }}</td>
+                        <td>S/ {{ item.producto.precio }}</td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>S/ {{ calcularSubtotalItem(item) | number:'1.2-2' }}</td>
+                        <td><button (click)="removerItemPedido(i)" style="color: red; cursor: pointer;">X</button></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                <h4 style="margin: 0;">Monto Total: S/ {{ calcularTotalPedido() | number:'1.2-2' }}</h4>
+                <button type="button" (click)="registrarPedido()"
+                    style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">
+                    Confirmar y Guardar Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE PEDIDOS -->
+    <h3 style="margin-top: 35px;">Lista de Pedidos Registrados</h3>
     <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background: #eee;">
             <tr>
@@ -77,6 +142,7 @@
                 <th>Cliente</th>
                 <th>Fecha de Compra</th>
                 <th>Monto Total</th>
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -84,7 +150,10 @@
                 <td>{{ ped.id }}</td>
                 <td>{{ ped.cliente }}</td>
                 <td>{{ ped.fechaCompra }}</td>
-                <td>S/ {{ ped.montoTotal }}</td>
+                <td>S/ {{ ped.montoTotal | number:'1.2-2' }}</td>
+                <td>
+                    <button (click)="eliminarPedido(ped.id)" style="color: red; cursor: pointer;">Eliminar</button>
+                </td>
             </tr>
         </tbody>
     </table>

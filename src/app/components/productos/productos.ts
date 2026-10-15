@@ -15,8 +15,17 @@ import { AuthService } from '../../services/auth';
 export class ProductosComponent implements OnInit {
   productos: Producto[] = [];
   pedidos: any[] = [];
+  
+  // Formulario de Producto
   productoActual: Producto = { nombre: '', precio: 0, stock: 0 };
   editando = false;
+
+  // Formulario de Pedido
+  nombreCliente: string = '';
+  productoSeleccionadoId: number | null = null;
+  cantidadSeleccionada: number = 1;
+  itemsPedido: Array<{ producto: { id: number; nombre?: string; precio?: number }; cantidad: number }> = [];
+
   mensajeAlerta = '';
   usuarioActual: string | null = '';
 
@@ -47,13 +56,14 @@ export class ProductosComponent implements OnInit {
     });
   }
 
+  // --- CRUD DE PRODUCTOS ---
   guardarProducto(): void {
     this.mensajeAlerta = '';
     if (this.editando && this.productoActual.id) {
       this.productoService.actualizar(this.productoActual.id, this.productoActual).subscribe({
         next: () => {
           this.cargarProductos();
-          this.limpiarFormulario();
+          this.limpiarFormularioProducto();
         },
         error: (err) => this.manejarErrorPermisos(err)
       });
@@ -61,7 +71,7 @@ export class ProductosComponent implements OnInit {
       this.productoService.crear(this.productoActual).subscribe({
         next: () => {
           this.cargarProductos();
-          this.limpiarFormulario();
+          this.limpiarFormularioProducto();
         },
         error: (err) => this.manejarErrorPermisos(err)
       });
@@ -82,16 +92,85 @@ export class ProductosComponent implements OnInit {
     });
   }
 
-  limpiarFormulario(): void {
+  limpiarFormularioProducto(): void {
     this.productoActual = { nombre: '', precio: 0, stock: 0 };
     this.editando = false;
+  }
+
+  // --- GESTIÓN DE PEDIDOS ---
+  agregarItemAlPedido(): void {
+    if (!this.productoSeleccionadoId || this.cantidadSeleccionada <= 0) return;
+
+    const prod = this.productos.find(p => p.id === Number(this.productoSeleccionadoId));
+    if (!prod) return;
+
+    // Evitar duplicar el mismo producto en el detalle
+    const existe = this.itemsPedido.find(item => item.producto.id === prod.id);
+    if (existe) {
+      existe.cantidad += this.cantidadSeleccionada;
+    } else {
+      this.itemsPedido.push({
+        producto: { id: prod.id!, nombre: prod.nombre, precio: prod.precio },
+        cantidad: this.cantidadSeleccionada
+      });
+    }
+
+    this.cantidadSeleccionada = 1;
+    this.productoSeleccionadoId = null;
+  }
+
+  removerItemPedido(index: number): void {
+    this.itemsPedido.splice(index, 1);
+  }
+
+  calcularSubtotalItem(item: any): number {
+    return (item.producto.precio || 0) * item.cantidad;
+  }
+
+  calcularTotalPedido(): number {
+    return this.itemsPedido.reduce((acc, item) => acc + this.calcularSubtotalItem(item), 0);
+  }
+
+  registrarPedido(): void {
+    if (!this.nombreCliente.trim() || this.itemsPedido.length === 0) {
+      this.mensajeAlerta = 'Debe ingresar el nombre del cliente y al menos un producto en el pedido.';
+      return;
+    }
+
+    this.mensajeAlerta = '';
+    const nuevoPedido = {
+      cliente: this.nombreCliente,
+      detalles: this.itemsPedido.map(item => ({
+        producto: { id: item.producto.id },
+        cantidad: item.cantidad
+      }))
+    };
+
+    this.pedidoService.crear(nuevoPedido).subscribe({
+      next: () => {
+        this.cargarPedidos();
+        this.cargarProductos(); // Recargar productos para reflejar el descuento de stock
+        this.nombreCliente = '';
+        this.itemsPedido = [];
+      },
+      error: (err) => this.manejarErrorPermisos(err)
+    });
+  }
+
+  eliminarPedido(id?: number): void {
+    if (!id) return;
+    this.mensajeAlerta = '';
+    this.pedidoService.eliminar(id).subscribe({
+      next: () => this.cargarPedidos(),
+      error: (err) => this.manejarErrorPermisos(err)
+    });
   }
 
   manejarErrorPermisos(err: any): void {
     if (err.status === 403 || err.status === 401) {
       this.mensajeAlerta = 'Acceso denegado (403): Tu usuario solo tiene permisos de lectura (ROLE_USER).';
     } else {
-      this.mensajeAlerta = 'Ocurrió un error al procesar la solicitud.';
+      this.mensajeAlerta = typeof err.error === 'string' ? err.error : 'Ocurrió un error al procesar la solicitud.';
     }
   }
 
