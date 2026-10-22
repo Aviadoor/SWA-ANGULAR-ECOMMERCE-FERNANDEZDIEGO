@@ -56,7 +56,7 @@ export class ProductosComponent implements OnInit {
     });
   }
 
-  // --- CRUD DE PRODUCTOS ---
+  // --- CRUD DE PRODUCTOS --- ----
   guardarProducto(): void {
     this.mensajeAlerta = '';
     if (this.editando && this.productoActual.id) {
